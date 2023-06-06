@@ -13,7 +13,6 @@ use diesel_async::{
 use diesel_json::Json;
 use futures::{Stream, StreamExt};
 use std::{collections::HashSet, pin::Pin, borrow::Cow};
-use std::{collections::HashSet, pin::Pin};
 use warg_crypto::{hash::AnyHash, Decode};
 use warg_protocol::{
     operator, package,
@@ -57,13 +56,13 @@ async fn get_names<'a>(
   // Ok(())
 }
 
-async fn get_records<R: Decode>(
-    conn: &mut AsyncPgConnection,
+async fn get_records<'a, R: Decode>(
+    conn: &'a mut AsyncPgConnection,
     log_id: i32,
-    root: &AnyHash,
-    since: Option<&RecordId>,
+    root: &'a AnyHash,
+    since: Option<&'a RecordId>,
     limit: i64,
-) -> Result<Vec<ProtoEnvelope<R>>, DataStoreError> {
+) -> Result<Vec<ProtoEnvelope<R>>, DataStoreError<'a>> {
     let checkpoint_id = schema::checkpoints::table
         .select(schema::checkpoints::id)
         .filter(schema::checkpoints::checkpoint_id.eq(TextRef(root)))
@@ -109,18 +108,18 @@ async fn get_records<R: Decode>(
         .collect::<Result<_, _>>()
 }
 
-async fn insert_record<V>(
-    conn: &mut AsyncPgConnection,
-    log_id: &LogId,
-    name: Option<&str>,
-    record_id: &RecordId,
-    record: &ProtoEnvelope<V::Record>,
-    missing: &HashSet<&AnyHash>,
-) -> Result<(), DataStoreError>
+async fn insert_record<'a, V>(
+    conn: &'a mut AsyncPgConnection,
+    log_id: &'a LogId,
+    name: Option<&'a str>,
+    record_id: &'a RecordId,
+    record: &'a ProtoEnvelope<V::Record>,
+    missing: &'a HashSet<&'a AnyHash>,
+) -> Result<(), DataStoreError<'a>>
 where
     V: Validator + 'static,
     <V as Validator>::Error: ToString + Send + Sync,
-    DataStoreError: From<<V as Validator>::Error>,
+    DataStoreError<'a>: From<<V as Validator>::Error>,
 {
     let contents = record.as_ref().contents();
     conn.transaction::<_, DataStoreError, _>(|conn| {
@@ -192,12 +191,12 @@ where
     .await
 }
 
-async fn reject_record(
-    conn: &mut AsyncPgConnection,
+async fn reject_record<'a>(
+    conn: &'a mut AsyncPgConnection,
     log_id: i32,
-    record_id: &RecordId,
-    reason: &str,
-) -> Result<(), DataStoreError> {
+    record_id: &'a RecordId,
+    reason: &'a str,
+) -> Result<(), DataStoreError<'a>> {
     let count = diesel::update(schema::records::table)
         .filter(
             schema::records::record_id
@@ -219,15 +218,15 @@ async fn reject_record(
     Ok(())
 }
 
-async fn validate_record<V>(
-    conn: &mut AsyncPgConnection,
+async fn validate_record<'a, V>(
+    conn: &'a mut AsyncPgConnection,
     log_id: i32,
-    record_id: &RecordId,
-) -> Result<(), DataStoreError>
+    record_id: &'a RecordId,
+) -> Result<(), DataStoreError<'a>>
 where
     V: Validator + 'static,
     <V as Validator>::Error: ToString + Send + Sync,
-    DataStoreError: From<<V as Validator>::Error>,
+    DataStoreError<'a>: From<<V as Validator>::Error>,
 {
     conn.transaction::<_, DataStoreError, _>(|conn| {
         async move {
@@ -282,15 +281,15 @@ where
     .await
 }
 
-async fn get_record<V>(
-    conn: &mut AsyncPgConnection,
-    log_id: &LogId,
-    record_id: &RecordId,
-) -> Result<Record<V::Record>, DataStoreError>
+async fn get_record<'a, V>(
+    conn: &'a mut AsyncPgConnection,
+    log_id: &'a LogId,
+    record_id: &'a RecordId,
+) -> Result<Record<V::Record>, DataStoreError<'a>>
 where
     V: Validator + 'static,
     <V as Validator>::Error: ToString + Send + Sync,
-    DataStoreError: From<<V as Validator>::Error>,
+    DataStoreError<'a>: From<<V as Validator>::Error>,
 {
     let log_id = schema::logs::table
         .select(schema::logs::id)
@@ -380,6 +379,18 @@ impl PostgresDataStore {
 
 #[axum::async_trait]
 impl DataStore for PostgresDataStore {
+    async fn get_names(&self, root: Cow<AnyHash>) -> Result<Vec<String>, DataStoreError> {
+      let mut conn = self.0.get().await?;
+      let checkpoint_id = schema::checkpoints::table
+        .select(schema::checkpoints::id)
+        .filter(schema::checkpoints::checkpoint_id.eq(TextRef(&root)))
+        .first::<i32>(&mut conn).await
+        .optional()?
+        .ok_or_else(|| DataStoreError::CheckpointNotFoundCow(root));
+      let names = get_names(&mut conn, root).await;
+      names
+    }
+
     async fn get_initial_leaves(
         &self,
     ) -> Result<

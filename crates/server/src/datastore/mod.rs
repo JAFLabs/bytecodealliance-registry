@@ -1,6 +1,5 @@
 use futures::Stream;
 use std::{collections::HashSet, pin::Pin, borrow::Cow};
-use std::{collections::HashSet, pin::Pin};
 use thiserror::Error;
 use warg_crypto::hash::AnyHash;
 use warg_protocol::{
@@ -105,7 +104,7 @@ where
 /// Implemented by data stores.
 #[axum::async_trait]
 pub trait DataStore: Send + Sync {
-    async fn get_names(&self, root: Cow<AnyHash>) -> Vec<String>;
+    async fn get_names(&self, root: Cow<AnyHash>) -> Result<Vec<String>, DataStoreError>;
     /// Gets a stream of initial leaves in the store.
     ///
     /// This is an expensive operation and should only be performed on startup.

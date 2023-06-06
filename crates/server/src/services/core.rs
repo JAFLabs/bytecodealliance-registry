@@ -87,7 +87,7 @@ impl CoreService {
         signing_key: PrivateKey,
         store: Box<dyn DataStore>,
         checkpoint_interval: Duration,
-    ) -> Result<(Arc<Self>, StopHandle), DataStoreError> {
+    ) -> Result<(Arc<Self>, StopHandle), DataStoreError<'static>> {
         let data = Self::initialize(&signing_key, store.as_ref()).await?;
         let token = CancellationToken::new();
         let (log_tx, log_rx) = mpsc::channel(4);
@@ -194,10 +194,10 @@ impl CoreService {
         &self.map
     }
 
-    async fn initialize(
-        signing_key: &PrivateKey,
-        store: &dyn DataStore,
-    ) -> Result<InitializationData, DataStoreError> {
+    async fn initialize<'a>(
+        signing_key: &'a PrivateKey,
+        store: &'a dyn DataStore,
+    ) -> Result<InitializationData, DataStoreError<'a>> {
         tracing::debug!("initializing core service");
         let mut data = InitializationData::default();
         let mut last_checkpoint = None;

@@ -12,10 +12,8 @@ use axum::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use warg_api::v1::fetch::{FetchError, FetchLogsRequest, FetchLogsResponse, FetchNamesResponse};
-use warg_api::v1::fetch::{FetchError, FetchLogsRequest, FetchLogsResponse};
 use warg_crypto::hash::Sha256;
 use warg_protocol::registry::{LogId, MapCheckpoint};
-use warg_protocol::{ProtoEnvelopeBody, SerdeEnvelope};
 use warg_protocol::{ProtoEnvelopeBody, SerdeEnvelope, query};
 
 const DEFAULT_RECORDS_LIMIT: u16 = 100;
@@ -93,10 +91,7 @@ async fn query(
       .core_service
       .store()
       .get_names(body.root.clone())
-      .await;
-        // .into_iter()
-        // .map(Into::into)
-        // .collect();
+      .await?;
 
     Ok(Json(FetchNamesResponse {
       query: names
