@@ -35,6 +35,13 @@ pub struct PublishRecordRequest<'a> {
     pub content_sources: HashMap<AnyHash, Vec<ContentSource>>,
 }
 
+/// Response for informing clients where to upload content
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UrlResponse {
+  /// Url where client should publish content to
+  pub url: String
+}
+
 /// Represents a package record API entity in a registry.
 #[derive(Serialize, Deserialize)]
 pub struct PackageRecord {

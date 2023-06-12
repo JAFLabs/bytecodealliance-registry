@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt;
 use warg_api::v1::package::{
-    ContentSource, PackageError, PackageRecord, PackageRecordState, PublishRecordRequest,
+    ContentSource, PackageError, PackageRecord, UrlResponse, PackageRecordState, PublishRecordRequest,
 };
 use warg_crypto::hash::{AnyHash, Sha256};
 use warg_protocol::{
@@ -61,6 +61,7 @@ impl Config {
 
     pub fn into_router(self) -> Router {
         Router::new()
+            .route("/:log_id/upload_url", get(get_url))
             .route("/:log_id/record", post(publish_record))
             .route("/:log_id/record/:record_id", get(get_record))
             .route(
@@ -161,6 +162,19 @@ impl IntoResponse for PackageApiError {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::from_u16(self.0.status()).unwrap(), Json(self.0)).into_response()
     }
+}
+
+#[debug_handler]
+async fn get_url(
+    State(config): State<Config>,
+    Path(log_id): Path<LogId>,
+) -> Result<Json<UrlResponse>, PackageApiError> {
+  let mut url = config.base_url;
+  url.push_str("/v1/package/");
+  url.push_str(&log_id.to_string());
+  url.push_str("/record");
+  dbg!(&url);
+  Ok(Json(UrlResponse {url}))
 }
 
 #[debug_handler]

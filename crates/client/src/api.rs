@@ -10,7 +10,7 @@ use url::Host;
 use warg_api::v1::{
     fetch::{FetchError, FetchLogsRequest, FetchLogsResponse},
     package::{
-        ContentSource, PackageError, PackageRecord, PackageRecordState, PublishRecordRequest,
+        ContentSource, PackageError, PackageRecord, PackageRecordState, PublishRecordRequest, UrlResponse,
     },
     paths,
     proof::{
@@ -209,16 +209,16 @@ impl Client {
         log_id: &LogId,
         request: PublishRecordRequest<'_>,
     ) -> Result<PackageRecord, ClientError> {
-        let url = self
+        let get_publish_url = self
             .url
-            .join(&paths::publish_package_record(log_id))
+            .join(&paths::get_publish_url(log_id))
             .unwrap();
+        let publish_url: UrlResponse = self.client.get(get_publish_url).send().await?.json().await?;
         tracing::debug!(
-            "appending record to package `{id}` at `{url}`",
+            "appending record to package `{id}` at `{0}`", publish_url.url,
             id = request.id
         );
-
-        let response = self.client.post(url).json(&request).send().await?;
+        let response = self.client.post(publish_url.url).json(&request).send().await?;
         into_result::<_, PackageError>(response).await
     }
 
