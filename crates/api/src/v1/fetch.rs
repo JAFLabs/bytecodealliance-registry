@@ -10,6 +10,15 @@ use warg_protocol::{
     ProtoEnvelopeBody,
 };
 
+/// The Query
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchNamesResponse {
+  /// The Query
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub query: Vec<Option<String>>,
+}
+
 /// Represents a fetch logs request.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
