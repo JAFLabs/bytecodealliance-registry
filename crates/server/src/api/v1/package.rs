@@ -1,7 +1,10 @@
 use super::{Json, Path};
 use crate::{
     datastore::{DataStoreError, RecordStatus},
-    policy::content::{ContentPolicy, ContentPolicyError},
+    policy::{
+        content::{ContentPolicy, ContentPolicyError},
+        record::{RecordPolicy, RecordPolicyError},
+    },
     services::CoreService,
 };
 use axum::{
@@ -17,6 +20,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::NamedTempFile;
 use tokio::io::AsyncWriteExt;
+use url::Url;
 use warg_api::v1::package::{
     ContentSource, PackageError, PackageRecord, PackageRecordState, PublishRecordRequest,
 };
@@ -30,26 +34,29 @@ use warg_protocol::{
 #[derive(Clone)]
 pub struct Config {
     core_service: Arc<CoreService>,
-    base_url: String,
+    content_base_url: Url,
     files_dir: PathBuf,
     temp_dir: PathBuf,
     content_policy: Option<Arc<dyn ContentPolicy>>,
+    record_policy: Option<Arc<dyn RecordPolicy>>,
 }
 
 impl Config {
     pub fn new(
         core_service: Arc<CoreService>,
-        base_url: String,
+        content_base_url: Url,
         files_dir: PathBuf,
         temp_dir: PathBuf,
         content_policy: Option<Arc<dyn ContentPolicy>>,
+        record_policy: Option<Arc<dyn RecordPolicy>>,
     ) -> Self {
         Self {
             core_service,
-            base_url,
+            content_base_url,
             files_dir,
             temp_dir,
             content_policy,
+            record_policy,
         }
     }
 
@@ -77,11 +84,12 @@ impl Config {
     }
 
     fn content_url(&self, digest: &AnyHash) -> String {
-        format!(
-            "{url}/content/{name}",
-            url = self.base_url,
-            name = self.content_file_name(digest)
-        )
+        self.content_base_url
+            .join("content/")
+            .unwrap()
+            .join(&self.content_file_name(digest))
+            .unwrap()
+            .to_string()
     }
 }
 
@@ -119,6 +127,9 @@ impl From<DataStoreError> for PackageApiError {
             }
             DataStoreError::LogNotFound(id) => PackageError::LogNotFound(id),
             DataStoreError::RecordNotFound(id) => PackageError::RecordNotFound(id),
+            DataStoreError::UnknownKey(_) | DataStoreError::SignatureVerificationFailed => {
+                PackageError::Unauthorized(e.to_string())
+            }
             // Other errors are internal server errors
             e => {
                 tracing::error!("unexpected data store error: {e}");
@@ -132,9 +143,18 @@ impl From<DataStoreError> for PackageApiError {
 }
 
 impl From<ContentPolicyError> for PackageApiError {
-    fn from(value: ContentPolicyError) -> Self {
-        match value {
+    fn from(e: ContentPolicyError) -> Self {
+        match e {
             ContentPolicyError::Rejection(message) => Self(PackageError::Rejection(message)),
+        }
+    }
+}
+
+impl From<RecordPolicyError> for PackageApiError {
+    fn from(e: RecordPolicyError) -> Self {
+        match e {
+            RecordPolicyError::Unauthorized(message) => Self(PackageError::Unauthorized(message)),
+            RecordPolicyError::Rejection(message) => Self(PackageError::Rejection(message)),
         }
     }
 }
@@ -151,11 +171,11 @@ async fn publish_record(
     Path(log_id): Path<LogId>,
     Json(body): Json<PublishRecordRequest<'static>>,
 ) -> Result<impl IntoResponse, PackageApiError> {
-    let expected_log_id = LogId::package_log::<Sha256>(&body.name);
+    let expected_log_id = LogId::package_log::<Sha256>(&body.id);
     if expected_log_id != log_id {
         return Err(PackageApiError::bad_request(format!(
-            "package log identifier `{expected_log_id}` derived from name `{name}` does not match provided log identifier `{log_id}`",
-            name = body.name
+            "package log identifier `{expected_log_id}` derived from `{id}` does not match provided log identifier `{log_id}`",
+            id = body.id
         )));
     }
 
@@ -172,15 +192,27 @@ async fn publish_record(
         ));
     }
 
-    let record_id = RecordId::package_record::<Sha256>(&record);
+    // Preemptively perform the policy check on the record before storing it
+    // This is performed here so that we never store an unauthorized record
+    if let Some(policy) = &config.record_policy {
+        policy.check(&body.id, &record)?;
+    }
 
+    // Verify the signature on the record itself before storing it
+    config
+        .core_service
+        .store()
+        .verify_package_record_signature(&log_id, &record)
+        .await?;
+
+    let record_id = RecordId::package_record::<Sha256>(&record);
     let mut missing = record.as_ref().contents();
     missing.retain(|d| !config.content_present(d));
 
     config
         .core_service
         .store()
-        .store_package_record(&log_id, &body.name, &record_id, &record, &missing)
+        .store_package_record(&log_id, &body.id, &record_id, &record, &missing)
         .await?;
 
     // If there's no missing content, submit the record for processing now

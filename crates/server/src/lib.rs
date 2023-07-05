@@ -2,7 +2,7 @@ use crate::{api::create_router, datastore::MemoryDataStore};
 use anyhow::{Context, Result};
 use datastore::DataStore;
 use futures::Future;
-use policy::content::ContentPolicy;
+use policy::{content::ContentPolicy, record::RecordPolicy};
 use services::CoreService;
 use std::{
     fs,
@@ -12,6 +12,7 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use url::Url;
 use warg_crypto::signing::PrivateKey;
 
 pub mod api;
@@ -27,11 +28,13 @@ const DEFAULT_CHECKPOINT_INTERVAL: Duration = Duration::from_secs(5);
 pub struct Config {
     operator_key: PrivateKey,
     addr: Option<SocketAddr>,
-    data_store: Option<Box<dyn datastore::DataStore>>,
+    data_store: Option<Box<dyn DataStore>>,
     content_dir: PathBuf,
+    content_base_url: Option<Url>,
     shutdown: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync>>>,
     checkpoint_interval: Option<Duration>,
     content_policy: Option<Arc<dyn ContentPolicy>>,
+    record_policy: Option<Arc<dyn RecordPolicy>>,
 }
 
 impl std::fmt::Debug for Config {
@@ -43,9 +46,17 @@ impl std::fmt::Debug for Config {
                 "data_store",
                 &self.data_store.as_ref().map(|_| "dyn DataStore"),
             )
-            .field("content", &self.content_dir)
+            .field("content_dir", &self.content_dir)
             .field("shutdown", &self.shutdown.as_ref().map(|_| "dyn Future"))
             .field("checkpoint_interval", &self.checkpoint_interval)
+            .field(
+                "content_policy",
+                &self.content_policy.as_ref().map(|_| "dyn ContentPolicy"),
+            )
+            .field(
+                "record_policy",
+                &self.record_policy.as_ref().map(|_| "dyn RecordPolicy"),
+            )
             .finish()
     }
 }
@@ -58,15 +69,25 @@ impl Config {
             addr: None,
             data_store: None,
             content_dir,
+            content_base_url: None,
             shutdown: None,
             checkpoint_interval: None,
             content_policy: None,
+            record_policy: None,
         }
     }
 
     /// Specify the address for the server to listen on.
     pub fn with_addr(mut self, addr: impl Into<SocketAddr>) -> Self {
         self.addr = Some(addr.into());
+        self
+    }
+
+    /// Specify the content base URL to use.
+    ///
+    /// If not set, the content base URL will be derived from the server address.
+    pub fn with_content_base_url(mut self, url: Url) -> Self {
+        self.content_base_url = Some(url);
         self
     }
 
@@ -106,6 +127,12 @@ impl Config {
     /// Sets the content policy to use for the server.
     pub fn with_content_policy(mut self, policy: impl ContentPolicy + 'static) -> Self {
         self.content_policy = Some(Arc::new(policy));
+        self
+    }
+
+    /// Sets the record policy to use for the server.
+    pub fn with_record_policy(mut self, policy: impl RecordPolicy + 'static) -> Self {
+        self.record_policy = Some(Arc::new(policy));
         self
     }
 }
@@ -190,14 +217,18 @@ impl Server {
             )
         })?;
 
-        let base_url = format!("http://{addr}", addr = self.config.addr.unwrap());
+        let content_base_url = self.config.content_base_url.unwrap_or_else(|| {
+            Url::parse(&format!("http://{addr}", addr = self.config.addr.unwrap())).unwrap()
+        });
+
         let server = axum::Server::from_tcp(listener)?.serve(
             create_router(
-                base_url,
+                content_base_url,
                 core,
                 temp_dir,
-                files_dir.clone(),
+                files_dir,
                 self.config.content_policy,
+                self.config.record_policy,
             )
             .into_make_service(),
         );
@@ -206,9 +237,7 @@ impl Server {
 
         if let Some(shutdown) = self.config.shutdown {
             tracing::debug!("server is running with a shutdown signal");
-            server
-                .with_graceful_shutdown(async move { shutdown.await })
-                .await?;
+            server.with_graceful_shutdown(shutdown).await?;
         } else {
             tracing::debug!("server is running without a shutdown signal");
             server.await?;

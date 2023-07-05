@@ -214,8 +214,8 @@ impl Client {
             .join(&paths::publish_package_record(log_id))
             .unwrap();
         tracing::debug!(
-            "appending record to package `{name}` at `{url}`",
-            name = request.name
+            "appending record to package `{id}` at `{url}`",
+            id = request.id
         );
 
         let response = self.client.post(url).json(&request).send().await?;
@@ -401,7 +401,7 @@ impl Client {
             }
         }
 
-        let map_proof_bundle: MapProofBundle<Sha256, MapLeaf> =
+        let map_proof_bundle: MapProofBundle<Sha256, LogId, MapLeaf> =
             MapProofBundle::decode(response.map.as_slice())?;
         let map_inclusions = map_proof_bundle.unbundle();
         for (leaf, proof) in leafs.iter().zip(map_inclusions.iter()) {

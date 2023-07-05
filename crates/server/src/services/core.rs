@@ -133,8 +133,6 @@ impl CoreService {
                         Some(SubmitPackageRecord {
                             log_id, record_id
                         }) => {
-                            // TODO: perform all policy checks on the record here
-
                             // Validate the package record
                             match task_core.store.validate_package_record(&log_id, &record_id).await {
                                 Ok(()) => {
@@ -205,7 +203,6 @@ impl CoreService {
         while let Some(res) = initial.next().await {
             let InitialLeaf { leaf, checkpoint } = res?;
             data.log.push(&leaf);
-
             data.map = data.map.insert(
                 leaf.log_id.clone(),
                 MapLeaf {

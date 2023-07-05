@@ -347,6 +347,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "beef"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a8241f3ebb85c056b509d4327ad0358fbbba6ffb340bf388f26350aeda225b1"
+
+[[package]]
 name = "bincode"
 version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1947,6 +1953,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "logos"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c000ca4d908ff18ac99b93a062cb8958d331c3220719c52e77cb19cc6ac5d2c1"
+dependencies = [
+ "logos-derive",
+]
+
+[[package]]
+name = "logos-codegen"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc487311295e0002e452025d6b580b77bb17286de87b57138f3b5db711cded68"
+dependencies = [
+ "beef",
+ "fnv",
+ "proc-macro2",
+ "quote",
+ "regex-syntax 0.6.29",
+ "syn 2.0.18",
+]
+
+[[package]]
+name = "logos-derive"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbfc0d229f1f42d790440136d941afd806bc9e949e2bcb8faa813b0f00d1267e"
+dependencies = [
+ "logos-codegen",
+]
+
+[[package]]
 name = "mach"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2016,6 +2054,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "miette"
+version = "5.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a236ff270093b0b67451bc50a509bd1bad302cb1d3c7d37d5efe931238581fa9"
+dependencies = [
+ "miette-derive",
+ "once_cell",
+ "thiserror",
+ "unicode-width",
+]
+
+[[package]]
+name = "miette-derive"
+version = "5.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4901771e1d44ddb37964565c654a3223ba41a594d02b8da471cc4464912b5cfa"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -2658,12 +2719,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost-reflect"
+version = "0.11.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "000e1e05ebf7b26e1eba298e66fe4eee6eb19c567d0ffb35e0dd34231cdac4c8"
+dependencies = [
+ "logos",
+ "miette",
+ "once_cell",
+ "prost",
+ "prost-types",
+]
+
+[[package]]
 name = "prost-types"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "213622a1460818959ac1181aaeb2dc9c7f63df720db7d788b3e24eacd1983e13"
 dependencies = [
  "prost",
+]
+
+[[package]]
+name = "protox"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24022a7eb88547eaba87a1db7954c9c4cb4a143565c4e8f2b7f3e76eed63db2d"
+dependencies = [
+ "bytes",
+ "miette",
+ "prost",
+ "prost-reflect",
+ "prost-types",
+ "protox-parse",
+ "thiserror",
+]
+
+[[package]]
+name = "protox-parse"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "712a2a651fa4466e67df6c967df5d7fc6cbffac89afc7b834f97ec49846c9c11"
+dependencies = [
+ "logos",
+ "miette",
+ "prost-types",
+ "thiserror",
 ]
 
 [[package]]
@@ -3055,15 +3156,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_bytes"
-version = "0.11.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "416bda436f9aab92e02c8e10d49a15ddd339cea90b6e340fe51ed97abb548294"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.163"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3382,6 +3474,12 @@ checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "testresult"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52e045f5cf9ad69772c1c9652f5567a75df88bbb5a1310a64e53cab140c5c459"
 
 [[package]]
 name = "thiserror"
@@ -3851,12 +3949,16 @@ dependencies = [
  "keyring",
  "p256",
  "rand_core",
+ "reqwest",
  "rpassword",
+ "serde_json",
+ "testresult",
  "thiserror",
  "tokio",
  "tokio-util",
  "tracing-subscriber",
  "url",
+ "warg-api",
  "warg-client",
  "warg-crypto",
  "warg-protocol",
@@ -3909,6 +4011,7 @@ dependencies = [
  "digest",
  "hex",
  "leb128",
+ "once_cell",
  "p256",
  "pretty_assertions",
  "rand_core",
@@ -3920,6 +4023,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "warg-protobuf"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pbjson",
+ "pbjson-build",
+ "pbjson-types",
+ "prost",
+ "prost-build",
+ "prost-types",
+ "protox",
+ "regex",
+ "serde",
+ "warg-crypto",
+]
+
+[[package]]
 name = "warg-protocol"
 version = "0.1.0"
 dependencies = [
@@ -3927,21 +4047,19 @@ dependencies = [
  "base64 0.21.2",
  "hex",
  "indexmap",
- "pbjson",
- "pbjson-build",
  "pbjson-types",
  "pretty_assertions",
  "prost",
- "prost-build",
  "prost-types",
- "regex",
  "semver",
  "serde",
  "serde_json",
  "serde_with",
  "thiserror",
  "warg-crypto",
+ "warg-protobuf",
  "warg-transparency",
+ "wasmparser 0.107.0",
 ]
 
 [[package]]
@@ -3959,7 +4077,6 @@ dependencies = [
  "diesel_json",
  "futures",
  "indexmap",
- "reqwest",
  "serde",
  "serde_json",
  "tempfile",
@@ -3970,6 +4087,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "url",
  "warg-api",
  "warg-crypto",
  "warg-protocol",
@@ -3984,19 +4102,15 @@ dependencies = [
  "anyhow",
  "ciborium",
  "criterion",
- "pbjson",
  "pbjson-build",
- "pbjson-types",
  "prost",
  "prost-build",
- "prost-types",
  "rand",
  "regex",
- "serde",
- "serde_bytes",
  "sha2",
  "thiserror",
  "warg-crypto",
+ "warg-protobuf",
 ]
 
 [[package]]

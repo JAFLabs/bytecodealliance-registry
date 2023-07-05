@@ -1,4 +1,7 @@
-use crate::{policy::content::ContentPolicy, services::CoreService};
+use crate::{
+    policy::{content::ContentPolicy, record::RecordPolicy},
+    services::CoreService,
+};
 use anyhow::Result;
 use axum::{
     extract::{
@@ -11,6 +14,7 @@ use axum::{
 };
 use serde::{Serialize, Serializer};
 use std::{path::PathBuf, sync::Arc};
+use url::Url;
 
 pub mod fetch;
 pub mod package;
@@ -86,15 +90,22 @@ pub async fn not_found() -> impl IntoResponse {
 }
 
 pub fn create_router(
-    base_url: String,
+    content_base_url: Url,
     core: Arc<CoreService>,
     temp_dir: PathBuf,
     files_dir: PathBuf,
     content_policy: Option<Arc<dyn ContentPolicy>>,
+    record_policy: Option<Arc<dyn RecordPolicy>>,
 ) -> Router {
     let proof_config = proof::Config::new(core.log_data().clone(), core.map_data().clone());
-    let package_config =
-        package::Config::new(core.clone(), base_url, files_dir, temp_dir, content_policy);
+    let package_config = package::Config::new(
+        core.clone(),
+        content_base_url,
+        files_dir,
+        temp_dir,
+        content_policy,
+        record_policy,
+    );
     let fetch_config = fetch::Config::new(core);
 
     Router::new()
