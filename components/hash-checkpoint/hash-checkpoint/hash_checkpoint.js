@@ -837,7 +837,6 @@ let realloc1;
 let postReturn0;
 
 function hashCheckpoint(arg0, arg1, arg2) {
-  console.log({arg0})
   const {logRoot: v0_0, logLength: v0_1, mapRoot: v0_2 } = arg0;
   const ptr1 = utf8Encode(v0_0, realloc1, memory0);
   const len1 = utf8EncodedLen;

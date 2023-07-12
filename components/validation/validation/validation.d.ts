@@ -1,0 +1,11 @@
+import { ImportsEnvironment } from './imports/environment';
+import { ImportsExit } from './imports/exit';
+import { ImportsPreopens } from './imports/preopens';
+import { ImportsStderr } from './imports/stderr';
+import { ImportsStdin } from './imports/stdin';
+import { ImportsStdout } from './imports/stdout';
+import { ImportsFilesystem } from './imports/filesystem';
+import { ImportsStreams } from './imports/streams';
+import { ImportsRandom } from './imports/random';
+import { ExportsComponentValidationValidating } from './exports/component-validation-validating';
+export const validating: typeof ExportsComponentValidationValidating;

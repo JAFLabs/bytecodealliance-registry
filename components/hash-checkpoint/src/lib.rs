@@ -19,9 +19,8 @@ impl bindings::exports::component::hash_checkpoint::hashing::Hashing for Compone
             map_root: AnyHash::from_str(&contents.map_root).unwrap()
           }, key, sig);
         let root: AnyHash = Hash::<Sha256>::of(usable.as_ref()).into();
-        dbg!(root);
-        "Hello, World!".to_string()
-        
+        // dbg!(root);
+        root.to_string()
     }
 }
 

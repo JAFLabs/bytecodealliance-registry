@@ -119,11 +119,11 @@ pub enum ParseEnvelopeError {
 pub struct ProtoEnvelopeBody {
     /// The serialized representation of the content
     #[serde_as(as = "Base64")]
-    content_bytes: Vec<u8>,
+    pub content_bytes: Vec<u8>,
     /// The hash of the key that signed this envelope
-    key_id: signing::KeyID,
+    pub key_id: signing::KeyID,
     /// The signature for the content_bytes
-    signature: signing::Signature,
+    pub signature: signing::Signature,
 }
 
 impl<Content> TryFrom<ProtoEnvelopeBody> for ProtoEnvelope<Content>
